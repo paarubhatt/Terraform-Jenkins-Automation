@@ -43,6 +43,11 @@ pipeline {
         }
 
         stage('Apply') {
+            when {
+                expression {
+                    return params.destroyFlag == false
+                }
+            }
             steps {
                 sh 'terraform apply -input=false tfplan'
             }
@@ -55,16 +60,8 @@ pipeline {
                 }
             }
             steps {
-                input message: "Are you sure you want to destroy the resources?",
-                parameters: [
-                    booleanParam(name: 'confirmDestroy', defaultValue: false, description: 'Confirm resource destruction')
-                ]
                 script {
-                    if (params.confirmDestroy) {
                         sh 'terraform destroy -auto-approve'
-                    } else {
-                        echo "Destroy process cancelled."
-                    }
                 }
             }
         }
