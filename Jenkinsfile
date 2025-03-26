@@ -51,12 +51,7 @@ pipeline {
                     } else if (params.action == 'destroy') {
                             echo "Destroying Terraform resources..."
                             sh 'terraform destroy -auto-approve'
-                        } else {
-                            echo "Destroy process cancelled."
-                        }
-                    } else {
-                        error("Invalid action: ${params.action}")
-                    }
+                        
                 }
             }
         }
