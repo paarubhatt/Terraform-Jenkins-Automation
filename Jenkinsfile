@@ -2,51 +2,71 @@ pipeline {
 
     parameters {
         booleanParam(name: 'autoApprove', defaultValue: false, description: 'Automatically run apply after generating plan?')
+        booleanParam(name: 'destroyFlag', defaultValue: true, description: 'Set to true to destroy resources after apply')
     } 
     environment {
         AWS_ACCESS_KEY_ID     = credentials('AWS_ACCESS_KEY_ID')
         AWS_SECRET_ACCESS_KEY = credentials('AWS_SECRET_ACCESS_KEY')
     }
 
-   agent  any
+    agent any
     stages {
-        stage('checkout') {
+        stage('Checkout') {
             steps {
-                 script{
-                        
-                           git branch: 'master', url: 'https://github.com/paarubhatt/Terraform-Jenkins-Automation.git'
-                    }
+                script {
+                    git branch: 'master', url: 'https://github.com/paarubhatt/Terraform-Jenkins-Automation.git'
                 }
             }
+        }
 
         stage('Plan') {
             steps {
                 sh 'terraform init'
-                sh ' terraform plan -out tfplan'
-                sh ' terraform show -no-color tfplan > tfplan.txt'
+                sh 'terraform plan -out=tfplan'
+                sh 'terraform show -no-color tfplan > tfplan.txt'
             }
         }
-        stage('Approval') {
-           when {
-               not {
-                   equals expected: true, actual: params.autoApprove
-               }
-           }
 
-           steps {
-               script {
+        stage('Approval') {
+            when {
+                not {
+                    equals expected: true, actual: params.autoApprove
+                }
+            }
+            steps {
+                script {
                     def plan = readFile 'tfplan.txt'
                     input message: "Do you want to apply the plan?",
                     parameters: [text(name: 'Plan', description: 'Please review the plan', defaultValue: plan)]
-               }
-           }
-       }
+                }
+            }
+        }
 
         stage('Apply') {
             steps {
-                sh " terraform apply -input=false tfplan"
+                sh 'terraform apply -input=false tfplan'
+            }
+        }
+
+        stage('Destroy') {
+            when {
+                expression {
+                    return params.destroyFlag == true
+                }
+            }
+            steps {
+                input message: "Are you sure you want to destroy the resources?",
+                parameters: [
+                    booleanParam(name: 'confirmDestroy', defaultValue: false, description: 'Confirm resource destruction')
+                ]
+                script {
+                    if (params.confirmDestroy) {
+                        sh 'terraform destroy -auto-approve'
+                    } else {
+                        echo "Destroy process cancelled."
+                    }
+                }
             }
         }
     }
-
-  }
+}
