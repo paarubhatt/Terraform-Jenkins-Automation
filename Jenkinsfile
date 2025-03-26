@@ -52,8 +52,9 @@ pipeline {
                             echo "Destroying Terraform resources..."
                             sh 'terraform destroy -auto-approve'
                         
+                    }
                 }
             }
-        }
-    }
-}
+        }   
+   }
+}   
