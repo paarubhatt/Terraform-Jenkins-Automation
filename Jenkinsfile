@@ -2,7 +2,7 @@ pipeline {
 
     parameters {
         booleanParam(name: 'autoApprove', defaultValue: false, description: 'Automatically run apply after generating plan?')
-        booleanParam(name: 'destroyFlag', defaultValue: true, description: 'Set to true to destroy resources after apply')
+        choice(name: 'action', choices: ['apply', 'destroy'], description: 'Choose whether to apply or destroy resources')
     } 
     environment {
         AWS_ACCESS_KEY_ID     = credentials('AWS_ACCESS_KEY_ID')
@@ -42,26 +42,26 @@ pipeline {
             }
         }
 
-        stage('Apply') {
-            when {
-                expression {
-                    return params.destroyFlag == false
-                }
-            }
-            steps {
-                sh 'terraform apply -input=false tfplan'
-            }
-        }
-
-        stage('Destroy') {
-            when {
-                expression {
-                    return params.destroyFlag == true
-                }
-            }
+        stage('Apply or Destroy') {
             steps {
                 script {
-                        sh 'terraform destroy -auto-approve'
+                    if (params.action == 'apply') {
+                        echo "Applying Terraform plan..."
+                        sh 'terraform apply -input=false tfplan'
+                    } else if (params.action == 'destroy') {
+                        input message: "Are you sure you want to destroy the resources?",
+                        parameters: [
+                            booleanParam(name: 'confirmDestroy', defaultValue: false, description: 'Confirm resource destruction')
+                        ]
+                        if (params.confirmDestroy) {
+                            echo "Destroying Terraform resources..."
+                            sh 'terraform destroy -auto-approve'
+                        } else {
+                            echo "Destroy process cancelled."
+                        }
+                    } else {
+                        error("Invalid action: ${params.action}")
+                    }
                 }
             }
         }
